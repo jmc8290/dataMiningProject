@@ -1,0 +1,49 @@
+---
+title: "Final Project Workbook"
+output:
+  pdf_document: default
+  html_document: default
+date: "2025-11-06"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Data Mining Final Project
+
+## Authors: James Christensen and Mohneesh Daksh
+
+```{r}
+full_data <- read.csv('data/data_mining.csv')
+head(full_data)
+```
+
+### Data Preprocessing
+
+Here one of us will have to clean the data, potentially make dummy variables, and maybe regularize some variables
+
+### Data Description
+
+Here one of us will have to write a summary of where the data came from, its purpose, and why we find it interesting/chose it
+
+### Association algorithm
+
+Here we will have to choose an association algorithm such as linear regression, ANN, or Market Basket analysis. (I personally think Market Basket Analysis is the most interesting, but we can choose a different one)
+
+### Classification algorithm
+
+Here we will have to choose a classification algorithm such as a decision tree, random forest, SVM, ANN, Bayesian Belief Network etc.
+
+### Clustering algorithm
+
+We haven't discussed these yet in class, but most of them are pretty simple like k-clusters. This may be one we wait to do for a bit
+
+
+### Visualization
+
+We can show different visualizations. It would probably be easiest to do one for the clustering algorithm or classification algorithm, but any of them would work
+
+### Performance Evaluator
+
+I think we could do an indepth discussion of the classification algorithm's performance. We could use a ROC curve and a confusion matrix.
