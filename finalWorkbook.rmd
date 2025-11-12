@@ -29,7 +29,98 @@ Here one of us will have to write a summary of where the data came from, its pur
 
 ### Association algorithm
 
-Here we will have to choose an association algorithm such as linear regression, ANN, or Market Basket analysis. (I personally think Market Basket Analysis is the most interesting, but we can choose a different one)
+Here we do Market Basket Analysis on the dataset. This doesnt make sense to perform on many of the columns and we need to adjust the data set in order to do this. To find interesting trends we will assess whether there are any strong associations between *education, marital-status, occupation, race, sex, native-country*
+
+
+```{r}
+ruleData <- subset(full_data, select = c(education, marital.status, occupation, race, sex, native.country))
+
+ruleData <- as.data.frame(model.matrix(~ . -1, data = ruleData))
+head(ruleData)
+```
+
+Rule data is now a dataset where each column has been one hot encoded. As such, there are 84 columns in the data set and every variable level is indicated by a 1 in the appropriate column.
+
+When it comes to itemsets and rule generation, it seems appropriate to have much lower support and confidence. We are dealing with census data with many, many levels. If we have a high support, we are going to miss rules especially from minority races or less common occupations. Since these are still interesting, it seems appropriate to keep a support of *1%*
+
+The confidence is kept at 50% so that we can find all interesting rules. This was the recommended confidence level by chatGPT to ensure that patterns worth investigating are captured.
+```{r}
+library(arules)
+data_transactions <- as(as.data.frame(lapply(ruleData, function(x) as.logical(x))), "transactions")
+
+itemsets <- apriori(data_transactions, parameter = list(target = 'frequent itemsets', support = 0.01))
+rules <- apriori(data_transactions, parameter = list(support = 0.01, confidence = 0.5))
+```
+
+```{r}
+inspect(itemsets)
+```
+The algorithm was able to return 824 itemsets which is quite a few. The rules with high confidence are as follows:
+
+```{r}
+inspect(rules)
+```
+
+We have a lot of candidate rules, as such it seems appropriate to filter them by lift. It also seems appropriate to remove redundant rules as there seems to be alot of them. The 10 rules with the most lift are:
+
+```{r}
+rules <- rules[!is.redundant(rules)]
+inspect(sort(rules, by = 'lift')[1:10])
+```
+
+The first 3 rules aren't very interesting. They basically say that if someone went to professional school then they have a professional occupation. What is remarkable is that they have a lift of 5
+
+The next 4 rules all describe the same relationship. That being {some college, an other service, being white, from the US} -> {never married}. This is kinda interesting. No gender is associated with this one, but it may be interesting to investigate how this is associated with age. The rule has a lift of 1.95 which means that someone with some college, is white, from the US, and works in an other service is almost twice as likely to be unmarried. But again, this may be due to age, but that would have to be investigated.
+
+The next rule is interesting as well. It is {Professional School, Male} -> {Married civily}. This rule has a lift of 1.73. So this means that if someone is male and has gone to professional school (such as to be a doctor or lawyer) he is 73% more likely to be married than normal.
+
+The next rule is that {married, machine operator or machine inspector, from the US} -> {highest education high school}. This rule has a lift of 1.72. This means that individuals who are married, machine operators (or machine inspectors), and from the US are 72% more likely to only have a high school education.
+
+#### Further rule analysis
+
+There are 63 rules with a lift of more than 1.5. We will go through every one of these and document the interesting rules.
+
+```{r}
+inspect(sort(rules, by = 'lift')[11:20])
+```
+
+The next interesting rule is that {male, other service, from the US} -> {not married}. This rule has a lift of 1.68.
+
+The other interesting rule from this sections is {High School Education, higher-level white-collar jobs (executives, managers, administrators), white, male, from the US} -> {Married civily}. Rule has a lift of 1.668
+
+```{r}
+inspect(sort(rules, by = 'lift')[21:30])
+```
+
+The only new interesting rule from this section is {Master's degree, male} -> {Married Civily}. This rule has a lift of 1.618.
+
+```{r}
+inspect(sort(rules, by = 'lift')[31:40])
+```
+
+There are no new interesting rules from this section, just some clarifications to the ones above.
+
+```{r}
+inspect(sort(rules, by = 'lift')[41:50])
+```
+
+The interesting rule from this section is {janitor/warehouse worker, male, from the US} -> {never married} has a lift of 1.558. 
+
+```{r}
+inspect(sort(rules, by = 'lift')[51:63])
+```
+
+One of the interesting rules that popped up had to do with the occupation of sales. I found it interesting, but some of the aspects seemed redundant, so I looked deeper into the rules. A distilled version of the rule is that {works in sales, male} -> {married civily} with a lift of 1.40. This means that a male who does sales is 40% more likely to be married than the public.
+
+Perhaps the most stunning rule I've found is that {middle school education (7th/8th grade), male} -> {married civily} with a lift of 1.548. This means that males with only a middle school education are 55% more likely to be married than the general public.
+
+```{r}
+inspect(sort(rules, by = 'lift')[64:75])
+```
+
+This further analysis helped me confirm some actual associations and find some rather stunning new rules. One of which is that {male, Vocational Associate's degree} -> {Married Civily} with a lift of 1.456.
+
+While this rule analysis has been interesting. I think it would be beneficial to do a more distilled analysis. One that includes occupation, race (not including white), sex, age, education, and marital status. I think this could uncover some interesting rules.
 
 ### Classification algorithm
 
