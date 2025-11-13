@@ -21,7 +21,44 @@ head(full_data)
 
 ### Data Preprocessing
 
-Here one of us will have to clean the data, potentially make dummy variables, and maybe regularize some variables
+```{r}
+# 1. Remove unnecessary ID/index column
+full_data$X <- NULL
+
+# 2. Replace '?' with NA (for missing values)
+full_data[full_data == "?"] <- NA
+
+# 3. Check how many missing values per column
+colSums(is.na(full_data))
+
+# 4. Remove rows with missing values
+full_data <- na.omit(full_data)
+colSums(is.na(full_data))
+
+# 5. Scale numeric columns (regularization)
+library(dplyr)
+full_data_scaled <- full_data %>%
+mutate(across(where(is.numeric), scale))
+
+# 6. Convert character columns to factors
+full_data_scaled[sapply(full_data_scaled, is.character)] <- 
+  lapply(full_data_scaled[sapply(full_data_scaled, is.character)], as.factor)
+
+# 7. One-hot encode categorical variables (dummy variables)
+library(caret)
+dummy <- dummyVars(" ~ .", data = full_data_scaled)
+full_data_scaled <- data.frame(predict(dummy, newdata = full_data_scaled))
+
+
+# 8. Check structure of the processed dataset
+str(full_data_scaled)
+
+# 9. Preview cleaned and processed data
+head(full_data_scaled)
+```
+
+The raw dataset contained 48,842 observations and 16 variables describing demographic and income information. During preprocessing, the index column (X) was removed, and missing values represented by “?” were converted to NA and omitted. All categorical variables such as workclass, education, and marital.status were converted into factors and later encoded into dummy variables using one-hot encoding, expanding the dataset to 112 attributes. Finally, all numeric features were standardized to ensure that variables operate on a comparable scale for subsequent analysis. After cleaning and transformation, the final dataset contained 46,443 valid records and 112 numeric predictors, ready for further data mining tasks.
+
 
 ### Data Description
 
