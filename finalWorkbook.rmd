@@ -165,7 +165,54 @@ Here we will have to choose a classification algorithm such as a decision tree, 
 
 ### Clustering algorithm
 
-We haven't discussed these yet in class, but most of them are pretty simple like k-clusters. This may be one we wait to do for a bit
+To compare how the clusters come out, I will do three different clustering algorithms on the data, *grid-based*, PAM, and DBSCAN.
+
+```{r}
+library(cluster)
+library(dbscan)
+library(Rtsne)
+library(fastDummies)
+cluster_data <- full_data %>% 
+  select(-c(occupation, relationship, capital.gain, capital.loss, native.country, income))
+cluster_data_encoded <- dummy_cols(cluster_data, remove_first_dummy = TRUE)
+cluster_data_encoded <- cluster_data_encoded %>% 
+  select(-c(workclass, education, marital.status, race, sex))
+```
+
+
+#### PAM
+
+First we find the gower distance between all the variables then calculate on the basis of silhouette what our k should be
+
+```{r}
+gower_dist <- daisy(cluster_data_encoded[1:100,],
+                    metric = "gower")
+gower_mat <- as.matrix(gower_dist)
+
+
+sil <- c(NA)
+
+for(i in 2:80){
+  pam_fit <- pam(gower_mat, diss = TRUE, k = i)
+  sil[i] <- pam_fit$silinfo$avg.width
+}
+
+#plot silhouette width
+
+
+plot(1:80, sil,
+     xlab = "number of clusters",
+     ylab = "silhouette width")
+lines(1:80, sil)
+```
+
+Trying this algorithm various times, it seems like 30 clusters is a decent amount
+
+#### DBSCAN
+```{r}
+res <- dbscan(cluster_data_encoded, eps = 250, minPts = 5)
+res
+```
 
 
 ### Visualization
