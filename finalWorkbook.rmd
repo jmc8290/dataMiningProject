@@ -62,7 +62,10 @@ The raw dataset contained 48,842 observations and 16 variables describing demogr
 
 ### Data Description
 
-Here one of us will have to write a summary of where the data came from, its purpose, and why we find it interesting/chose it
+The dataset used in this project was taken from the UCI Machine Learning Repository. It contains census data that was originally collected by the U.S. Census Bureau and published in 1996. The dataset includes information about adults such as their age, education, occupation, hours worked per week, and other demographic details.
+
+The main goal of this dataset is to predict whether a person earns more than $50,000 a year based on their personal and work-related attributes. We found this dataset interesting because it involves real-world social and economic factors, and it allows us to explore patterns that might be linked to income levels. Even though it is an older dataset, it is still widely used today to practice data preprocessing, feature engineering, and machine learning classification tasks.
+
 
 ### Association algorithm
 
