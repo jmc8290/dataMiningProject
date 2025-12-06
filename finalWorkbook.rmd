@@ -35,6 +35,9 @@ colSums(is.na(full_data))
 full_data <- na.omit(full_data)
 colSums(is.na(full_data))
 
+# 4.1 Clean income variable column
+full_data$income <- gsub("\\.", "", full_data$income)
+
 # 5. Scale numeric columns (regularization)
 library(dplyr)
 full_data_scaled <- full_data %>%
@@ -49,6 +52,11 @@ library(caret)
 dummy <- dummyVars(" ~ .", data = full_data_scaled)
 full_data_scaled <- data.frame(predict(dummy, newdata = full_data_scaled))
 
+#7.2 Drop unnecessary income column
+full_data_scaled <- full_data_scaled[, - (ncol(full_data_scaled) - 1)]
+
+#7.3 Rename the income column
+colnames(full_data_scaled)[ncol(full_data_scaled)] <- "incomeGreaterThan50k"
 
 # 8. Check structure of the processed dataset
 str(full_data_scaled)
@@ -162,6 +170,74 @@ While this rule analysis has been interesting. I think it would be beneficial to
 ### Classification algorithm
 
 Here we will have to choose a classification algorithm such as a decision tree, random forest, SVM, ANN, Bayesian Belief Network etc.
+
+```{r}
+library(randomForest)
+
+```
+
+```{r}
+full_data_scaled[, ncol(full_data_scaled)] <- 
+  as.factor(full_data_scaled[, ncol(full_data_scaled)])
+train_index <- createDataPartition(
+  y = full_data_scaled[, ncol(full_data_scaled)],
+  p = 0.8,
+  list = FALSE
+)
+
+train_data <- full_data_scaled[train_index, ]
+test_data  <- full_data_scaled[-train_index, ]
+```
+
+
+```{r}
+rf_model <- randomForest(
+  x = train_data[, -ncol(train_data)],   # predictors
+  y = train_data[,  ncol(train_data)],   # target
+  ntree = 500,
+  mtry = floor(sqrt(ncol(train_data) - 1)),
+  importance = TRUE
+)
+```
+
+```{r}
+rf_preds <- predict(rf_model, test_data[, -ncol(test_data)])
+
+```
+
+```{r}
+confusionMatrix(
+  data = rf_preds,
+  reference = test_data[, ncol(test_data)]
+)
+```
+
+```{r}
+rf_probs <- predict(
+  rf_model, 
+  test_data[, -ncol(test_data)], 
+  type = "prob"
+)[, 2] 
+
+roc_obj <- roc(
+  response = test_data[, ncol(test_data)],
+  predictor = rf_probs
+)
+
+auc(roc_obj)
+
+plot(roc_obj)
+```
+
+
+```{r}
+importance(rf_model)
+```
+
+```{r}
+varImpPlot(rf_model)
+```
+
 
 ### Clustering algorithm
 
