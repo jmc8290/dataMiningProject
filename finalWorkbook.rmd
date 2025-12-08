@@ -350,7 +350,7 @@ for (i in seq_along(k_values)) {
 
 plot(k_values, sil_width, type = "b")
 
-best_k <- 4
+best_k <- 5
 
 ```
 
@@ -376,7 +376,7 @@ pam_run <- function(df, k) {
   pam(gower_dist, k = k, diss = TRUE)
 }
 
-k <- 4   # choose once and keep fixed
+k <- 5   # choose once and keep fixed
 
 pam1 <- pam_run(s1, k)
 pam2 <- pam_run(s2, k)
@@ -387,15 +387,138 @@ s2$cluster <- pam2$clustering
 s3$cluster <- pam3$clustering
 ```
 
+Hungarian matching
 ```{r}
-clusterData <- full_data_scaled
-clusterData$clusterLabel <-  factor(apply(dist_to_medoids, 1, which.min))
+library(clue)
+
+get_medoid_data <- function(pam_obj, df) {
+  df[pam_obj$medoids, , drop = FALSE]
+}
+
+med1 <- get_medoid_data(pam1, s1)
+med2 <- get_medoid_data(pam2, s2)
+med3 <- get_medoid_data(pam3, s3)
+
+gower_dist <- function(a, b) {
+  daisy(rbind(a, b), metric = "gower") |> 
+    as.matrix()|> (\(m) m[1:nrow(a), (nrow(a) + 1):(nrow(a) + nrow(b))])()
+}
+
+align_clusters <- function(pamA, dfA, pamB, dfB) {
+   medA <- get_medoid_data(pamA, dfA)
+  medB <- get_medoid_data(pamB, dfB)
+  dist_mat <- gower_dist(medA, medB)
+  solve_LSAP(dist_mat)
+}
+
+map12 <- align_clusters(pam1, s1, pam2, s2)
+map13 <- align_clusters(pam1, s1, pam3, s3)
+map23 <- align_clusters(pam2, s2, pam3, s3)
 ```
 
-Analyze clusters
+```{r}
+predict_pam <- function(newdata, pam_obj, df_train) {
+  df_train <- df_train[, -((ncol(df_train)-1):ncol(df_train))]
+
+  
+  # Extract medoids from original training data
+  medoids <- df_train[pam_obj$medoids, , drop = FALSE]
+  
+  # Build joint matrix for daisy()
+  both <- rbind(medoids, newdata)
+  
+  # Distance matrix
+  dm <- daisy(both, metric = "gower") |> as.matrix()
+  
+  k <- nrow(medoids)
+  dist_to_medoids <- dm[(k+1):(k + nrow(newdata)), 1:k]
+  
+  # Assign nearest medoid
+  apply(dist_to_medoids, 1, which.min)
+}
+
+
+assignments_split1 <- predict_pam(split1, pam1, s1)
+assignments_split2 <- predict_pam(split2, pam2, s2)
+assignments_split3 <- predict_pam(split3, pam3, s3)
+
+
+```
+
 
 ```{r}
+relabel <- function(cluster_vec, map) {
+  map[cluster_vec]
+}
 
+assignments_split2_aligned <- relabel(assignments_split2, map12)
+assignments_split3_aligned <- relabel(assignments_split3, map13)
+split1$cluster_model1 <- assignments_split1
+split2$cluster_model2 <- assignments_split2_aligned
+split3$cluster_model3 <- assignments_split3_aligned
+
+
+```
+
+```{r}
+colnames(split1)[colnames(split1) == "cluster_model1"] <- "clusterLabel"
+colnames(split2)[colnames(split2) == "cluster_model2"] <- "clusterLabel"
+colnames(split3)[colnames(split3) == "cluster_model3"] <- "clusterLabel"
+
+full_data_with_clusters <- rbind(split1, split2, split3)
+```
+
+
+Analyzing clusters
+
+```{r}
+cluster1_data <- subset(full_data_with_clusters, clusterLabel == 1)
+cluster2_data <- subset(full_data_with_clusters, clusterLabel == 2)
+cluster3_data <- subset(full_data_with_clusters, clusterLabel == 3)
+cluster4_data <- subset(full_data_with_clusters, clusterLabel == 4)
+cluster5_data <- subset(full_data_with_clusters, clusterLabel == 5)
+
+
+```
+
+
+```{r}
+c(mean(full_data_with_clusters$marital.status.Married.civ.spouse), mean(full_data_with_clusters$race.White), mean(full_data_with_clusters$incomeGreaterThan50k), mean(full_data_with_clusters$sex.Male))
+```
+
+
+```{r}
+cluster1_data #Married, White males potentially
+c(mean(cluster1_data$incomeGreaterThan50k), mean(cluster1_data$race.White), mean(cluster1_data$marital.status.Married.civ.spouse), mean(cluster1_data$sex.Male))
+```
+
+```{r}
+cluster2_data #neverMarried, poor, males
+c(mean(cluster2_data$marital.status.Never.married), 1 - mean(cluster2_data$incomeGreaterThan50k), mean(cluster2_data$race.White), mean(cluster2_data$sex.Male))
+```
+
+```{r}
+cluster3_data #college dropouts/inschool, never married, women
+
+#mean for full_data for some college is 0.221
+
+c(1 - mean(cluster3_data$incomeGreaterThan50k), mean(cluster3_data$sex.Female), mean(cluster3_data$education.Some.college), mean(cluster3_data$marital.status.Never.married), mean(cluster3_data$race.White))
+```
+
+```{r}
+cluster4_data # divorced, women
+
+#Average divorce rate in the data set is 0.138
+
+c(mean(cluster4_data$marital.status.Divorced), 1 - mean(cluster4_data$incomeGreaterThan50k), mean(cluster4_data$sex.Female), mean(cluster4_data$race.White))
+```
+
+```{r}
+cluster5_data #highest education highschool, married, male,
+
+#highest education highschool mean for full data is 0.326
+
+c(mean(cluster5_data$race.White), mean(cluster5_data$sex.Male), mean(cluster5_data$marital.status.Married.civ.spouse))
 ```
 
 
