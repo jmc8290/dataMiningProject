@@ -241,53 +241,79 @@ varImpPlot(rf_model)
 
 ### Clustering algorithm
 
-To compare how the clusters come out, I will do three different clustering algorithms on the data, *grid-based*, PAM, and DBSCAN.
-
 ```{r}
 library(cluster)
-library(dbscan)
-library(Rtsne)
-library(fastDummies)
-cluster_data <- full_data %>% 
-  select(-c(occupation, relationship, capital.gain, capital.loss, native.country, income))
-cluster_data_encoded <- dummy_cols(cluster_data, remove_first_dummy = TRUE)
-cluster_data_encoded <- cluster_data_encoded %>% 
-  select(-c(workclass, education, marital.status, race, sex))
+library(factoextra)
+library(dplyr)
 ```
 
 
-#### PAM
-
-First we find the gower distance between all the variables then calculate on the basis of silhouette what our k should be
-
+Findings the best number of clusters
 ```{r}
-gower_dist <- daisy(cluster_data_encoded[1:100,],
-                    metric = "gower")
-gower_mat <- as.matrix(gower_dist)
+sampsize <- 2000
+samp_idx <- sample(nrow(full_data_scaled), sampsize)
+adult_sample <- full_data_scaled[samp_idx, ]
 
+# 2. Gower on SAMPLE ONLY (this is safe)
+gower_sample <- daisy(adult_sample, metric = "gower")
 
-sil <- c(NA)
+# 3. Find best k using PAM + silhouette
+k_values <- 2:8
+sil_width <- numeric(length(k_values))
 
-for(i in 2:80){
-  pam_fit <- pam(gower_mat, diss = TRUE, k = i)
-  sil[i] <- pam_fit$silinfo$avg.width
+for (i in seq_along(k_values)) {
+  pam_fit <- pam(gower_sample, k = k_values[i], diss = TRUE)
+  sil_width[i] <- mean(silhouette(pam_fit)[, 3])
 }
 
-#plot silhouette width
+plot(k_values, sil_width, type = "b")
 
+best_k <- 4
 
-plot(1:80, sil,
-     xlab = "number of clusters",
-     ylab = "silhouette width")
-lines(1:80, sil)
 ```
 
-Trying this algorithm various times, it seems like 30 clusters is a decent amount
 
-#### DBSCAN
 ```{r}
-res <- dbscan(cluster_data_encoded, eps = 250, minPts = 5)
-res
+set.seed(123)
+
+n <- nrow(full_data_scaled)
+split_id <- sample(rep(1:3, length.out = n))
+
+split1 <- full_data_scaled[split_id == 1, ]
+split2 <- full_data_scaled[split_id == 2, ]
+split3 <- full_data_scaled[split_id == 3, ]
+
+subsample_size <- 2000
+
+s1 <- split1[sample(nrow(split1), subsample_size), ]
+s2 <- split2[sample(nrow(split2), subsample_size), ]
+s3 <- split3[sample(nrow(split3), subsample_size), ]
+
+pam_run <- function(df, k) {
+  gower_dist <- daisy(df, metric = "gower")
+  pam(gower_dist, k = k, diss = TRUE)
+}
+
+k <- 4   # choose once and keep fixed
+
+pam1 <- pam_run(s1, k)
+pam2 <- pam_run(s2, k)
+pam3 <- pam_run(s3, k)
+
+s1$cluster <- pam1$clustering
+s2$cluster <- pam2$clustering
+s3$cluster <- pam3$clustering
+```
+
+```{r}
+clusterData <- full_data_scaled
+clusterData$clusterLabel <-  factor(apply(dist_to_medoids, 1, which.min))
+```
+
+Analyze clusters
+
+```{r}
+
 ```
 
 
