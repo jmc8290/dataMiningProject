@@ -172,93 +172,14 @@ While this rule analysis has been interesting. I think it would be beneficial to
 
 ### Classification algorithm
 
+```{r}
+
 library(caret)
 library(randomForest)
 
 # Setting seed to ensure results are reproducible
 set.seed(123)  
 
-# Cleaning the income variable by removing formatting inconsistencies
-
-# Removing trailing periods
-full_data$income <- gsub("\\.", "", full_data$income)
-
-# Correcting inconsistent labels <50K to <=50K
-full_data$income <- gsub("^<50K$", "<=50K", full_data$income)
-
-# Converting income (target variable) to a factor
-full_data$income <- as.factor(full_data$income)
-
-# Verifying factor levels
-levels(full_data$income)
-
-# Just in case: drop any remaining NAs (should be none after preprocessing)
-full_data <- na.omit(full_data)
-
-# Creating a one-hot encoding model for all predictor variables (excluding the target 'income')
-dummy_model <- dummyVars(income ~ ., data = full_data)
-
-# Matrix/data frame of predictors (all numeric after encoding)
-x_all <- predict(dummy_model, newdata = full_data)
-x_all <- as.data.frame(x_all)
-
-# Extracting the target variable into a separate vector
-y_all <- full_data$income
-
-# Splitting into training (70%) and test (30%) sets, stratified by income
-train_index <- createDataPartition(y_all, p = 0.7, list = FALSE)
-
-x_train <- x_all[train_index, ]
-x_test  <- x_all[-train_index, ]
-
-y_train <- y_all[train_index]
-y_test  <- y_all[-train_index]
-
-# Check dataset dimensions and class distribution to verify successful splitting
-dim(x_train)
-dim(x_test)
-table(y_train)
-table(y_test)
-
-
-# Training a Random Forest classifier on the training set
-
-rf_model <- randomForest(
-  x = x_train,
-  y = y_train,
-  ntree = 500,                            # number of trees in the forest
-  mtry = floor(sqrt(ncol(x_train))),     # number of predictors sampled per split
-  importance = TRUE                     # compute variable importance
-)
-
-rf_model
-
-
-# Generating predictions on the test dataset
-
-# Predict income classification labels for the test dataset
-rf_pred_class <- predict(rf_model, newdata = x_test, type = "class")
-
-# Predict class probabilities (needed for evaluation metrics like ROC curve)
-rf_pred_prob <- predict(rf_model, newdata = x_test, type = "prob")
-
-# Display the first few predicted class labels
-cat("\nFirst few predicted classes:\n")
-print(head(rf_pred_class))
-
-# Display a confusion table comparing predicted vs actual values
-cat("\nConfusion table (raw counts):\n")
-print(table(Predicted = rf_pred_class, Actual = y_test))
-
-head(rf_pred_class)
-head(rf_pred_prob)
-
-```{r}
-library(randomForest)
-
-```
-
-```{r}
 full_data_scaled[, ncol(full_data_scaled)] <- 
   as.factor(full_data_scaled[, ncol(full_data_scaled)])
 train_index <- createDataPartition(
@@ -269,32 +190,37 @@ train_index <- createDataPartition(
 
 train_data <- full_data_scaled[train_index, ]
 test_data  <- full_data_scaled[-train_index, ]
+
 ```
+
 
 
 ```{r}
 rf_model <- randomForest(
   x = train_data[, -ncol(train_data)],   # predictors
-  y = train_data[,  ncol(train_data)],   # target
-  ntree = 500,
-  mtry = floor(sqrt(ncol(train_data) - 1)),
-  importance = TRUE
+  y = train_data[,  ncol(train_data)], 
+  ntree = 500,                            # number of trees in the forest
+  mtry = floor(sqrt(ncol(train_data) - 1)),     # number of predictors sampled per split
+  importance = TRUE                     # compute variable importance
 )
+
+rf_model
 ```
 
 ```{r}
-rf_preds <- predict(rf_model, test_data[, -ncol(test_data)])
-
+rf_pred_class <- predict(rf_model, newdata = test_data, type = "class")
 ```
+
 
 ```{r}
 confusionMatrix(
-  data = rf_preds,
+  data = rf_pred_class,
   reference = test_data[, ncol(test_data)]
 )
 ```
 
 ```{r}
+library(pROC)
 rf_probs <- predict(
   rf_model, 
   test_data[, -ncol(test_data)], 
@@ -313,11 +239,25 @@ plot(roc_obj)
 
 
 ```{r}
-importance(rf_model)
+var_imp <- importance(rf_model)
+
+# Convert to a data frame (optional, makes sorting easier)
+var_imp_df <- data.frame(
+  Variable = rownames(var_imp),
+  Importance = var_imp[, 1]  # for MeanDecreaseGini (default)
+)
+
+# Sort in decreasing order
+var_imp_df <- var_imp_df[order(-var_imp_df$Importance), ]
+
+# Get top 5 most important variables
+top5_vars <- head(var_imp_df, 5)
+
+top5_vars
 ```
 
 ```{r}
-varImpPlot(rf_model)
+varImpPlot(rf_model, n.var = 10, type = 1)
 ```
 
 
@@ -508,7 +448,7 @@ c(1 - mean(cluster3_data$incomeGreaterThan50k), mean(cluster3_data$sex.Female), 
 ```{r}
 cluster4_data # divorced, women
 
-#Average divorce rate in the data set is 0.138
+#Average divorce rate in the data set is 0.138 compared to 0.72 here
 
 c(mean(cluster4_data$marital.status.Divorced), 1 - mean(cluster4_data$incomeGreaterThan50k), mean(cluster4_data$sex.Female), mean(cluster4_data$race.White))
 ```
