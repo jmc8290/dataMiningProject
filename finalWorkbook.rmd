@@ -81,7 +81,8 @@ Here we do Market Basket Analysis on the dataset. This doesnt make sense to perf
 
 
 ```{r}
-ruleData <- subset(full_data, select = c(education, marital.status, occupation, race, sex, native.country))
+rule_data <- read.csv('data/data_mining.csv')
+ruleData <- subset(rule_data, select = c(education, marital.status, occupation, race, sex, native.country))
 
 ruleData <- as.data.frame(model.matrix(~ . -1, data = ruleData))
 head(ruleData)
@@ -461,23 +462,71 @@ cluster5_data #highest education highschool, married, male,
 c(mean(cluster5_data$race.White), mean(cluster5_data$sex.Male), mean(cluster5_data$marital.status.Married.civ.spouse))
 ```
 
+Average Cluster Ages
 
-### Visualization
+```{r}
+muAge <- mean(rule_data$age)
+sdA <- sd(rule_data$age)
+mu1 <- mean(cluster1_data$age)*sdA + muAge
+mu2 <- mean(cluster2_data$age)*sdA + muAge
+mu3 <- mean(cluster3_data$age)*sdA + muAge
+mu4 <- mean(cluster4_data$age)*sdA + muAge
+mu5 <- mean(cluster5_data$age)*sdA + muAge
+c(mu1, mu2, mu3, mu4, mu5)
+```
 
-We can show different visualizations. It would probably be easiest to do one for the clustering algorithm or classification algorithm, but any of them would work
 
-### Performance Evaluator
+### Visualization/EDA
 
-I think we could do an indepth discussion of the classification algorithm's performance. We could use a ROC curve and a confusion matrix.
+```{r}
+rule_data <- rule_data %>%
+  mutate(marital.status = as.factor(marital.status),
+         marital.status = dplyr::recode(marital.status,
+                                 "Married-civ-spouse" = "Married",
+                                 "Married-spouse-absent" = "Spouse Absent"))
+```
 
-# Creating a confusion matrix treating ">50K" as the positive class
-cm <- confusionMatrix(
-  rf_pred_class,
-  y_test,
-  positive = ">50K"
-)
 
-# Printing the confusion matrix and associated statistics
-print(cm)
+```{r}
+library(ggplot2)
 
-# A confusion matrix is generated using the test dataset to evaluate classification performance. The model achieved strong overall accuracy, correctly identifying most individuals with income <=50K. However, predicting the minority class (>50K) remains more challenging due to class imbalance. Precision and recall for the positive class were examined to understand how well the model detects high-income individuals. The F1-score provides a balanced assessment of these metrics and reflects the expected performance range for this dataset.
+
+ggplot(rule_data, aes(x = marital.status)) +
+  geom_bar(aes(y = after_stat(prop), group = 1), fill = "#0047BA") +
+  labs(title = "Marital Status Proportions",
+       x = "Marital Status",
+       y = "Proportion")
+
+#ggsave("barplotM.png")
+```
+
+```{r}
+prop.table(table(rule_data$race))
+```
+
+```{r}
+rule_data$income <- gsub("\\.", "", rule_data$income)
+income <- ggplot(rule_data, aes(x = income)) +
+  geom_bar(aes(y = after_stat(prop), group = 1), fill = "#0047BA") +
+  labs(title = "Income Proportions",
+       x = "Income",
+       y = "Proportion")
+
+ggsave('income.png')
+```
+
+```{r}
+
+plot(density(rule_data$education.num),
+     main = "Density Plot of Education",
+     xlab = "Years of Education (starting from 4th grade)",
+     ylab = "Density",
+     xaxt = "n",             # suppress default x-axis
+     col = "#0047BA",
+     lwd = 2)
+
+# Add custom x-axis
+axis(side = 1, at = seq(0, 16, by = 2))
+
+```
+
