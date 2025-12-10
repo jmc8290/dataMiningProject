@@ -173,6 +173,8 @@ While this rule analysis has been interesting. I think it would be beneficial to
 
 ### Classification algorithm
 
+For our classification algorithm, we have elected to do a random forest. To start, naturally we need to split our data into training and testing datasets
+
 ```{r}
 
 library(caret)
@@ -195,6 +197,7 @@ test_data  <- full_data_scaled[-train_index, ]
 ```
 
 
+With that, we can now begin to fit our model
 
 ```{r}
 rf_model <- randomForest(
@@ -208,10 +211,13 @@ rf_model <- randomForest(
 rf_model
 ```
 
+This section makes the predictions for the test data
+
 ```{r}
 rf_pred_class <- predict(rf_model, newdata = test_data, type = "class")
 ```
 
+Here is our confusion matrix. For whatever reason, the model decided that making less than 50k was the 'positive' class, however we calculated all of our metrics as making more than 50k being the positive class
 
 ```{r}
 confusionMatrix(
@@ -219,6 +225,8 @@ confusionMatrix(
   reference = test_data[, ncol(test_data)]
 )
 ```
+
+Next we created our ROC curve using the standard library in R
 
 ```{r}
 library(pROC)
@@ -238,6 +246,7 @@ auc(roc_obj)
 plot(roc_obj)
 ```
 
+One thing is nice is our ability to generate importance plots for the different features. Here we are grabbing plots for both mean decrease accuracy and Gini. However, we are limiting it to 5 and 10 variables as having all of the variables on the plot made it unreadable.
 
 ```{r}
 var_imp <- importance(rf_model)
@@ -264,6 +273,8 @@ varImpPlot(rf_model, n.var = 10, type = 1)
 
 ### Clustering algorithm
 
+For our clustering algorithm, we are using a modified version of CLARA
+
 ```{r}
 library(cluster)
 library(factoextra)
@@ -271,7 +282,8 @@ library(dplyr)
 ```
 
 
-Findings the best number of clusters
+Findings the best number of clusters based off a sample of 2000 from the main dataset 
+
 ```{r}
 sampsize <- 2000
 samp_idx <- sample(nrow(full_data_scaled), sampsize)
@@ -295,6 +307,7 @@ best_k <- 5
 
 ```
 
+2 clusters is essentially useless, so the next best appears to be 5. So that is what we chose. Next we divide the dataset in 3, take a 2000 size sample from each subset. We then run PAM on each of those samples. We then saved the labels found from PAM on the clusters
 
 ```{r}
 set.seed(123)
@@ -328,7 +341,8 @@ s2$cluster <- pam2$clustering
 s3$cluster <- pam3$clustering
 ```
 
-Hungarian matching
+Next we do hungarian matching to make sure that we are using consistent labeling between the clusters. Since the clusters found basically the same groups, we just need to make sure the labels line up.
+
 ```{r}
 library(clue)
 
@@ -357,9 +371,13 @@ map13 <- align_clusters(pam1, s1, pam3, s3)
 map23 <- align_clusters(pam2, s2, pam3, s3)
 ```
 
+
+
+Now that the mappings are aligned, we assign each of the subsets clusters based off of their associated pam model.
+
 ```{r}
 predict_pam <- function(newdata, pam_obj, df_train) {
-  df_train <- df_train[, -((ncol(df_train)-1):ncol(df_train))]
+  df_train <- df_train[, -ncol(df_train)]
 
   
   # Extract medoids from original training data
@@ -386,6 +404,7 @@ assignments_split3 <- predict_pam(split3, pam3, s3)
 
 ```
 
+Now we use our mappings to remap the clusters to make sure that every prediction is alligned 
 
 ```{r}
 relabel <- function(cluster_vec, map) {
@@ -401,6 +420,8 @@ split3$cluster_model3 <- assignments_split3_aligned
 
 ```
 
+Here we take the 3 subsets and combine them back into one full data set
+
 ```{r}
 colnames(split1)[colnames(split1) == "cluster_model1"] <- "clusterLabel"
 colnames(split2)[colnames(split2) == "cluster_model2"] <- "clusterLabel"
@@ -410,7 +431,9 @@ full_data_with_clusters <- rbind(split1, split2, split3)
 ```
 
 
-Analyzing clusters
+### Analyzing clusters
+
+To analyze the clusters, we'll filter the data to each of the clusters then analyze their characteristics. This essentially involved me scrolling through the data view and seeing where there was an abnormal number of positives in a column. After verifying by finding the proportion and comparing it to the respective proportion in the full dataset, we were able to assign identities that characterized the individuals in the cluster.
 
 ```{r}
 cluster1_data <- subset(full_data_with_clusters, clusterLabel == 1)
@@ -464,6 +487,8 @@ c(mean(cluster5_data$race.White), mean(cluster5_data$sex.Male), mean(cluster5_da
 
 Average Cluster Ages
 
+This was a piece of information that needed to have the scaling reversed. It is helpful as it helped make sense of some of the trends we see in the clusters
+
 ```{r}
 muAge <- mean(rule_data$age)
 sdA <- sd(rule_data$age)
@@ -477,6 +502,8 @@ c(mu1, mu2, mu3, mu4, mu5)
 
 
 ### Visualization/EDA
+
+This section is essentially scratch work. It is where we made different plots and tables in order to have visualizations of the comparisons for the clusters
 
 ```{r}
 rule_data <- rule_data %>%
